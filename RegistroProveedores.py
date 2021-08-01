@@ -46,7 +46,7 @@ class Ui_MainWindow(object):
         WHERE Prov_Codigo = '{}' '''.format(direccion,nombre,tipo,telefono,RnC,codigo)
         self.ejecuccionExitosa(sql,cur)
         a = cur.rowcount
-        cur.commit()    g
+        cur.commit()    
         cur.close()
         return a  
 
@@ -90,7 +90,9 @@ class Ui_MainWindow(object):
                 x=cur.fetchall()
                 for i in x:
                         variable2=(str(i[0]))
-                if len(variable2)==0:
+                if  Error==True:
+                        pass
+                elif len(variable2)==0:
                         self.ventanaError2()
                 elif variable==self.lineEdit_8.text():
                         self.ventanaError1_1()
@@ -116,7 +118,7 @@ class Ui_MainWindow(object):
                         pass
                 Error=False
         except pyodbc.ProgrammingError: 
-               self.ventanaError2()
+                pass
         except TypeError:
                 self.ventanaError2()
         
@@ -200,7 +202,6 @@ class Ui_MainWindow(object):
         except TypeError:
                 self.ventanaError2()
         Error=False
-        
         
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -396,7 +397,6 @@ class Ui_MainWindow(object):
         self.obtenerUltimoProv()
         self.UltimoProv.setFont(font)
         
-
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "Registro de Proveedores"))
@@ -421,7 +421,7 @@ class Ui_MainWindow(object):
                 msg.setText("El codigo del proveedor ya existe.")
                 msg.setIcon(QMessageBox.Critical)
                 msg.setInformativeText("El codigo "+ self.lineEdit_7.text() + " ya esta registrado en la Base de datos.")
-                ejecutrMsg=msg.exec_()
+                ejecutrMsg=msg.exec_() 
 
     def ventanaError1_1(self):
                 msg= QMessageBox()
@@ -497,6 +497,7 @@ class Ui_MainWindow(object):
                         Validacion=True
                 else:
                         Validacion=False
+
     def obtenerUltimoProv(self):
                 sql='Select TOP 1 Prov_Codigo from Proveedores1 Order by Prov_Codigo desc'
                 cur = self.conexionBD.cursor()
@@ -552,6 +553,7 @@ class Ui_MainWindow(object):
                         var=''
                 else:
                         pass
+                
     def ejecuccionExitosa(self,sql,cur):
                 cur.execute(sql)
                 self.lineEdit_5.clear()
