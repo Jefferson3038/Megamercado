@@ -1,9 +1,12 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QDialog, QLabel, QMessageBox, QToolTip
+from PyQt5.QtWidgets import *
 from PyQt5.QtSql import *
-import sys, time, pyodbc
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+import sys, pyodbc
 from pyodbc import *
-Fecha=time.strftime("%x")
+from datetime import date, datetime,timedelta
+Fecha= datetime.now().strftime("%Y-%d-%m")
 
 Validacion=False
 Error=False
@@ -18,7 +21,7 @@ class Ui_MainWindow(object):
         
     def RegistrarProveedorSQL(self, codigo,direccion,nombre,tipo,telefono,RnC,Status):
         cur = self.conexionBD.cursor()
-        sql= "INSERT INTO Proveedores1 (Prov_Codigo,Prov_Direccion,Prov_Nombre,Prov_Tipo,Prov_Telefono,Prov_RNC,Prov_Status) Values(?,?,?,?,?,?,?)"
+        sql= "INSERT INTO Proveedores (Prov_Codigo,Prov_Direccion,Prov_Nombre,Prov_Tipo,Prov_Telefono,Prov_RNC,Prov_Estatus) Values(?,?,?,?,?,?,?)"
         cur.execute(sql,codigo,direccion,nombre,tipo,telefono,RnC,Status)
         self.lineEdit_5.clear()
         self.lineEdit_6.clear()
@@ -27,13 +30,12 @@ class Ui_MainWindow(object):
         self.lineEdit_9.clear()
         self.radioButton.click()
         self.ventanaExitosa()
-        self.obtenerUltimoProv()
         cur.commit()
         cur.close()  
 
     def EliminaProveedorSql(self,codigo):
         cur = self.conexionBD.cursor()
-        sql='''UPDATE Proveedores1 Set Prov_Status='B' WHERE Prov_Codigo = {}'''.format(codigo)
+        sql='''UPDATE Proveedores Set Prov_Estatus='B' WHERE Prov_Codigo = {}'''.format(codigo)
         self.ejecuccionExitosa(sql,cur)
         a = cur.rowcount
         cur.commit()    
@@ -42,7 +44,7 @@ class Ui_MainWindow(object):
 
     def ActualizarProvSql(self,direccion,nombre,tipo,telefono,RnC,codigo):
         cur= self.conexionBD.cursor()
-        sql ='''UPDATE Proveedores1 SET Prov_Direccion = '{}', Prov_Nombre = '{}', Prov_Tipo = '{}', Prov_Telefono= '{}',Prov_RNC= '{}'
+        sql ='''UPDATE Proveedores SET Prov_Direccion = '{}', Prov_Nombre = '{}', Prov_Tipo = '{}', Prov_Telefono= '{}',Prov_RNC= '{}'
         WHERE Prov_Codigo = '{}' '''.format(direccion,nombre,tipo,telefono,RnC,codigo)
         self.ejecuccionExitosa(sql,cur)
         a = cur.rowcount
@@ -60,10 +62,10 @@ class Ui_MainWindow(object):
         Validacion=False
         cur= self.conexionBD.cursor()
         Validacion=False
-
-        if self.radioButton.isChecked() and not self.radioButton_2.isChecked and not self.radioButton_3.isChecked:
+        telefonos= ["849","829","809"]
+        if self.radioButton.isChecked():
                 tipo1="Proveedores de productos o bienes"
-        elif self.radioButton_2.isChecked() and not self.radioButton.isChecked() and not self.radioButton_3:
+        elif self.radioButton_2.isChecked():
                 tipo1="Proveedores de servicios"
         else:
                 tipo1="Proveedores externos"
@@ -73,25 +75,30 @@ class Ui_MainWindow(object):
         tipo= tipo1
         telefono=self.lineEdit_6.text().strip()
         RnC=self.lineEdit_8.text().strip()
+        
         try: 
-                self.VerifacionBorrado(codigo)
-                sql="SELECT Prov_RNC from Proveedores1 where Prov_RNC={} and Prov_Codigo<>{}".format(RnC,codigo)
+                sql="SELECT Prov_RNC from Proveedores where Prov_RNC={} and Prov_Codigo<>{}".format(RnC,codigo)
                 cur.execute(sql)
                 x=cur.fetchall()
                 for i in x:
                         variable=(str(i[0]))
-                sql1="SELECT Prov_Telefono from Proveedores1 where Prov_Telefono={} and Prov_Codigo<>{}".format(telefono,codigo)
+                sql1="SELECT Prov_Telefono from Proveedores where Prov_Telefono={} and Prov_Codigo<>{}".format(telefono,codigo)
                 cur.execute(sql1)
                 x=cur.fetchall()
                 for i in x:
                         variable1=(str(i[0]))
-                sql="SELECT Prov_Codigo from Proveedores1 where Prov_Codigo={}".format(codigo)
+                sql="SELECT Prov_Codigo from Proveedores where Prov_Codigo={}".format(codigo)
                 cur.execute(sql)
                 x=cur.fetchall()
                 for i in x:
                         variable2=(str(i[0]))
+                self.VerifacionBorrado(codigo)
                 if  Error==True:
                         pass
+                elif codigo=="0":
+                        self.ventanaError0()
+                elif nombre=="" or direccion=="":
+                        self.ventanaError2()
                 elif len(variable2)==0:
                         self.ventanaError2()
                 elif variable==self.lineEdit_8.text():
@@ -102,86 +109,80 @@ class Ui_MainWindow(object):
                         self.ventanaError3()
                 elif len(self.lineEdit_8.text())!=11:
                         self.ventanaError4()
+                elif telefono[:3] not in telefonos:
+                        self.ventanaErrorTel()
                 elif variable1==self.lineEdit_6.text():
                         self.ventanaTelefono()
                         if Validacion:
                                 self.ActualizarProvSql(direccion,nombre,tipo,telefono,RnC,codigo)
-                        else:
-                                pass
-                elif Error==False:
+                else: 
                         self.ventanaConfirmacion_1()
                         if Validacion: 
                                 self.ActualizarProvSql(direccion,nombre,tipo,telefono,RnC,codigo)
-                        else: 
-                                pass
-                else: 
-                        pass
                 Error=False
         except pyodbc.ProgrammingError: 
-                pass
+                self.ventanaError2()
         except TypeError:
                 self.ventanaError2()
-        
+        cur.commit()
+        cur.close()
+
     def RegistrarProv(self):
-        tipo1=""
         global Validacion
+        tipo1=""
         variable=''
         variable1=''
-        variable2=''
         Validacion=True
+        telefonos= ["849","829","809"]
         cur= self.conexionBD.cursor()
-        if self.radioButton.isChecked() and not self.radioButton_2.isChecked and not self.radioButton_3.isChecked:
+        if self.radioButton.isChecked():
                 tipo1="Proveedores de productos o bienes"
-        elif self.radioButton_2.isChecked() and not self.radioButton.isChecked() and not self.radioButton_3:
+        elif self.radioButton_2.isChecked():
                 tipo1="Proveedores de servicios"
         else:
                 tipo1="Proveedores externos"
-        codigo= self.lineEdit_7.text().strip()
+        try:
+                codigo=int(self.obtenerUltimoProv())+1
+        except TypeError:
+                codigo=1
         direccion= self.lineEdit_9.text().strip()
         nombre= self.lineEdit_5.text().strip()
         tipo= tipo1
         Status='A'
         telefono=self.lineEdit_6.text().strip()
         RnC=self.lineEdit_8.text().strip()
-        try:    
-                sql="SELECT Prov_RNC from Proveedores1 where Prov_RNC={}".format(RnC)
+        try:   
+                sql="SELECT Prov_RNC from Proveedores where Prov_RNC={}".format(RnC)
                 cur.execute(sql)
                 x=cur.fetchall()
                 for i in x:
                         variable=(str(i[0]))
-
-                sql1="SELECT Prov_Telefono from Proveedores1 where Prov_Telefono={}".format(telefono)
+                sql1="SELECT Prov_Telefono from Proveedores where Prov_Telefono={}".format(telefono)
                 cur.execute(sql1)
                 x=cur.fetchall()
                 for i in x:
                         variable1=(str(i[0]))
-
-                sql2="SELECT Prov_Codigo from Proveedores1 where Prov_Codigo={}".format(codigo)
-                cur.execute(sql2)
-                x=cur.fetchall()
-                for i in x:
-                        variable2=(str(i[0]))
-                if variable2==self.lineEdit_7.text():
-                        self.ventanaError1()
+                if nombre=="" or direccion=="":
+                        self.ventanaError2()
                 elif variable==self.lineEdit_8.text():
                         self.ventanaError1_1()
                 elif len(self.lineEdit_6.text())!=10:
                         self.ventanaError3()
                 elif len(self.lineEdit_8.text())!=11:
                         self.ventanaError4()
+                elif telefono[:3] not in telefonos:
+                        self.ventanaErrorTel()
                 elif variable1==self.lineEdit_6.text():
                         self.ventanaTelefono()
                         if Validacion:
                                 self.RegistrarProveedorSQL(codigo,direccion,nombre,tipo,telefono,RnC,Status) 
-                        else:
-                                pass
                 else:
                         self.RegistrarProveedorSQL(codigo,direccion,nombre,tipo,telefono,RnC,Status) 
-        except pyodbc.IntegrityError:
-                self.ventanaError1()
         except pyodbc.ProgrammingError:
                 self.ventanaError2()
-
+        cur.commit()
+        cur.close()
+                
     def EliminiarProveedor(self):
         global Validacion
         global Error
@@ -191,12 +192,8 @@ class Ui_MainWindow(object):
                 self.VerifacionBorrado(codigo)
                 if Error==False:
                         self.ventanaConfirmacion()  
-                else:
-                        pass
                 if Validacion:
                         self.EliminaProveedorSql(codigo)
-                else: 
-                        pass
         except pyodbc.ProgrammingError: 
                 self.ventanaError2()
         except TypeError:
@@ -299,11 +296,13 @@ class Ui_MainWindow(object):
         self.pushButton_3 = QtWidgets.QPushButton(self.frame)
         self.pushButton_3.setGeometry(QtCore.QRect(400, 500, 181, 51))
         self.pushButton_3.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
-        self.pushButton_3.setStyleSheet("color:rgb(255, 255, 255);\n"
-"background-color: rgb(225, 13, 13);\n"
-"font: 63 13pt \"Roboto Mono\";\n"
-"font-weight: bold;\n"
-"")
+        self.pushButton_3.setStyleSheet("""
+QPushButton{       
+color:rgb(255, 255, 255);
+background-color: rgb(225, 13, 13);
+font: 63 13pt \"Roboto Mono\";
+font-weight: bold;}
+""")
         self.pushButton_3.setObjectName("pushButton_3")
         self.label_8 = QtWidgets.QLabel(self.frame)
         self.label_8.setGeometry(QtCore.QRect(300, 410, 131, 31))
@@ -345,8 +344,6 @@ class Ui_MainWindow(object):
         self.lineEdit_7.setText("")
         self.lineEdit_7.setObjectName("lineEdit_7")
         self.verticalLayout.addWidget(self.frame)
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
         MainWindow.setTabOrder(self.lineEdit_5, self.pushButton_3)
         MainWindow.setTabOrder(self.pushButton_3, self.lineEdit_6)
@@ -357,6 +354,7 @@ class Ui_MainWindow(object):
         self.lineEdit_6.setMaxLength(10)
         self.lineEdit_8.setMaxLength(11)
         self.lineEdit_9.setMaxLength(70)
+        #Restrigciones en los entradas de datos
         regex = QtCore.QRegExp("[A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]*")
         RegEx1= QtCore.QRegExp("[0-9]*")
         validator = QtGui.QRegExpValidator(regex, self.lineEdit_5)
@@ -367,8 +365,7 @@ class Ui_MainWindow(object):
         self.lineEdit_6.setValidator(validatorInt)
         self.lineEdit_8.setValidator(validatorInt2)
         self.lineEdit_7.setValidator(validatorInt3)
-
-        #BORDE ESTILO
+        #Borde Estilo
         self.pushButton.setGraphicsEffect(QtWidgets.QGraphicsDropShadowEffect(blurRadius=8, xOffset=0, yOffset=1))
         self.pushButton_3.setGraphicsEffect(QtWidgets.QGraphicsDropShadowEffect(blurRadius=8, xOffset=0, yOffset=1))
         self.pushButton4.setGraphicsEffect(QtWidgets.QGraphicsDropShadowEffect(blurRadius=8, xOffset=0, yOffset=1))
@@ -396,6 +393,15 @@ class Ui_MainWindow(object):
         self.UltimoProv.setGeometry(QtCore.QRect(550, 142, 271, 45))
         self.obtenerUltimoProv()
         self.UltimoProv.setFont(font)
+        QToolTip.setFont(QFont('Roboto Mono', 8))
+        self.pushButton_3.setToolTip("Solo se necesita el <b>codigo</b> del proveedor para esta accion")
+        #Icono
+        #imagen = QtWidgets.QLabel(self.frame)
+        #pixmap = QPixmap('ICON.png')
+        #imagen.setPixmap(pixmap)
+        #imagen.resize(600,600)
+        MainWindow.setCentralWidget(self.centralwidget)
+        self.retranslateUi(MainWindow)
         
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -413,15 +419,15 @@ class Ui_MainWindow(object):
         self.radioButton.setText(_translate("MainWindow", "Proveedores de productos o bienes"))
         self.radioButton_2.setText(_translate("MainWindow", "Proveedores de servicios"))
         self.radioButton_3.setText(_translate("MainWindow", "Proveedores externos"))
-        self.label_3.setText(_translate("MainWindow", "Codigo:"))
+        self.label_3.setText(_translate("MainWindow", "Codigo:"))    
+         
 
-    def ventanaError1(self):
+    def ventanaErrorTel(self):
                 msg= QMessageBox()
                 msg.setWindowTitle("Error")
-                msg.setText("El codigo del proveedor ya existe.")
-                msg.setIcon(QMessageBox.Critical)
-                msg.setInformativeText("El codigo "+ self.lineEdit_7.text() + " ya esta registrado en la Base de datos.")
-                ejecutrMsg=msg.exec_() 
+                msg.setText("El telefono "+ self.lineEdit_6.text()+ " no es existe")
+                msg.setIcon(QMessageBox.Warning)
+                msg.exec_() 
 
     def ventanaError1_1(self):
                 msg= QMessageBox()
@@ -429,15 +435,15 @@ class Ui_MainWindow(object):
                 msg.setText("El RNC del proveedor ya existe.")
                 msg.setIcon(QMessageBox.Critical)
                 msg.setInformativeText("El RNC "+ self.lineEdit_8.text() + " ya esta registrado en la Base de datos.")
-                ejecutrMsg=msg.exec_()
+                msg.exec_()
 
     def ventanaError2(self):
                 msg= QMessageBox()
                 msg.setWindowTitle("Error")
                 msg.setText("Error en los datos.")
                 msg.setIcon(QMessageBox.Warning)
-                msg.setInformativeText("Verifique que los campos no estan vacios o el codigo no existe.")
-                ejecutrMsg=msg.exec_()
+                msg.setInformativeText("Verifique que los campos no estan vacios")
+                msg.exec_()
 
     def ventanaError3(self):
                 msg= QMessageBox()
@@ -445,7 +451,7 @@ class Ui_MainWindow(object):
                 msg.setText("Error en los datos.")
                 msg.setIcon(QMessageBox.Warning)
                 msg.setInformativeText("El campo telefono debe de tener 10 digitios")
-                ejecutrMsg=msg.exec_()
+                msg.exec_()
 
     def ventanaError4(self):
                 msg= QMessageBox()
@@ -453,14 +459,14 @@ class Ui_MainWindow(object):
                 msg.setText("Error en los datos.")
                 msg.setIcon(QMessageBox.Warning)
                 msg.setInformativeText("El campo RNC debe de tener 11 digitios")
-                ejecutrMsg=msg.exec_()
+                msg.exec_()
 
     def ventanaExitosa(self):
                 msg= QMessageBox()
                 msg.setWindowTitle("Accion ejectuada")
                 msg.setText("La accion ha sido realizada con exito")
                 msg.setIcon(QMessageBox.Information)
-                ejecutrMsg=msg.exec_()
+                msg.exec_()
 
     def ventanaTelefono(self):
                 msg= QMessageBox()
@@ -469,7 +475,7 @@ class Ui_MainWindow(object):
                 msg.setIcon(QMessageBox.Question)
                 msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                 msg.buttonClicked.connect(self.ventanaConfButton)
-                ejecutrMsg=msg.exec_()
+                msg.exec_()
 
     def ventanaConfirmacion(self):
                 msg= QMessageBox()
@@ -479,7 +485,7 @@ class Ui_MainWindow(object):
                 msg.setIcon(QMessageBox.Warning)
                 msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                 msg.buttonClicked.connect(self.ventanaConfButton)
-                ejecutrMsg=msg.exec_() 
+                msg.exec_() 
 
     def ventanaConfirmacion_1(self):
                 msg= QMessageBox()
@@ -489,7 +495,7 @@ class Ui_MainWindow(object):
                 msg.setIcon(QMessageBox.Question)
                 msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                 msg.buttonClicked.connect(self.ventanaConfButton)
-                ejecutrMsg=msg.exec_()
+                msg.exec_()
 
     def ventanaConfButton(self,i):
                 global Validacion
@@ -499,17 +505,17 @@ class Ui_MainWindow(object):
                         Validacion=False
 
     def obtenerUltimoProv(self):
-                sql='Select TOP 1 Prov_Codigo from Proveedores1 Order by Prov_Codigo desc'
+                sql='Select TOP 1 Prov_Codigo from Proveedores Order by Prov_Codigo desc'
                 cur = self.conexionBD.cursor()
                 cur.execute(sql)
                 x=cur.fetchall()
                 for i in x:
-                        return self.UltimoProv.setText('Codigo del ultimo\nproveedor registrado: '+ str(i[0]))
-                
+                        return i[0]
+
     def ObtenerNombre(self):
                 codigo=self.lineEdit_7.text()
                 cur = self.conexionBD.cursor()
-                sql="SELECT Prov_Nombre from Proveedores1 where Prov_Codigo={}".format(codigo)
+                sql="SELECT Prov_Nombre from Proveedores where Prov_Codigo={}".format(codigo)
                 try:
                         cur.execute(sql)
                 except pyodbc.ProgrammingError:
@@ -523,7 +529,7 @@ class Ui_MainWindow(object):
     def ObtenerRNC_Cedula(self):
                 codigo=self.lineEdit_7.text()
                 cur = self.conexionBD.cursor()
-                sql="SELECT Prov_RNC from Proveedores1 where Prov_Codigo={}".format(codigo)
+                sql="SELECT Prov_RNC from Proveedores where Prov_Codigo={}".format(codigo)
                 try:
                         cur.execute(sql)
                 except pyodbc.ProgrammingError:
@@ -538,7 +544,7 @@ class Ui_MainWindow(object):
                 var=''
                 global Error
                 cur=self.conexionBD.cursor()
-                sql="SELECT Prov_Status from Proveedores1 where Prov_Codigo={}".format(codigo)
+                sql="SELECT Prov_Estatus from Proveedores where Prov_Codigo={}".format(codigo)
                 cur.execute(sql)
                 x=cur.fetchall()
                 for i in x:
@@ -546,13 +552,11 @@ class Ui_MainWindow(object):
                 if var=='B':
                         msg= QMessageBox()
                         msg.setWindowTitle("Error")
-                        msg.setText("El proveedor esta eliminado, no se puede ejecutar la accion")
+                        msg.setText("El proveedor de codigo " + codigo + " esta eliminado, no se puede ejecutar la accion")
                         msg.setIcon(QMessageBox.Warning)
                         msg.exec_()
                         Error=True
                         var=''
-                else:
-                        pass
                 
     def ejecuccionExitosa(self,sql,cur):
                 cur.execute(sql)
@@ -565,7 +569,6 @@ class Ui_MainWindow(object):
                 self.ventanaExitosa()
              
 if __name__ == "__main__":
-    import sys
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
